@@ -1,0 +1,131 @@
+#player1 {
+	width: 75%;
+	margin: 0 auto;
+}
+.p1_hand
+{
+	width:75;
+	height:120;
+	position: relative;
+}
+#p1
+{
+	position: absolute;
+	width:75;
+	height:120;
+	left: 370;
+	top:220;
+}
+#p2
+{
+	position: absolute;
+	transform: rotate(90deg);
+	width:75;
+	height:120;
+	left: 230;
+	top:300;
+}
+#p3
+{
+	position: absolute;
+	width:75;
+	height:120;
+	left: 370;
+	top:420;
+}
+#p4
+{
+	position: absolute;
+	transform: rotate(90deg);
+	width:75;
+	height:120;
+	left: 535;
+	top:300;
+}
+.p1_img1
+{
+	z-index: 1;
+	left: 0;
+}
+.p1_img2
+{
+	z-index: 2;
+	left: -50;
+}
+.p1_img3
+{
+	z-index: 3;
+	left: -100;
+}
+.p1_img4
+{
+	z-index: 4;
+	left: -150;
+}
+.p1_img5
+{
+	z-index: 5;
+	left: -200;
+}
+.p1_img6
+{
+	z-index: 6;
+	left: -250;
+}
+.p1_img7
+{
+	z-index: 7;
+	left: -300;
+}
+.p1_img8
+{
+	z-index: 8;
+	left: -350;
+}
+.p1_img9
+{
+	z-index: 9;
+	left: -400;
+}
+.p1_img10
+{
+	z-index: 10;
+	left: -450;
+}
+.p1_img11
+{
+	z-index: 11;
+	left: -500;
+}
+.p1_img12
+{
+	z-index: 12;
+	left: -550;
+}
+.p1_img13
+{
+	z-index: 13;
+	left: -600;
+}
+
+#player2 {
+	width: 75%;
+	margin-left: 120;
+	margin-top: -100;
+	transform-origin: left;
+	transform: rotate(90deg);
+}
+
+#player3 {
+	width: 75%;
+	margin-left: 200;
+	margin-top: 350;
+}
+
+#player4 {
+	width: 75%;
+	margin-left: 700;
+	margin-top: -120;
+	transform-origin: left;
+	transform: rotate(90deg);
+}
