@@ -82,6 +82,7 @@
         this.roundIndex = 0;
         this.currentPlayerIndex = 0;
         this.cardsToImgMap = {};
+        this.rounds = [];
     }
 
     startNewHand() {
@@ -140,6 +141,7 @@
     }
 
     recordRound(round) {
+    	this.rounds.push(round);
         for (var i=0; i < round.cards.length; i++) {
             var card = round.cards[i];
             this.playedCards[card.suite].push(card);
@@ -169,6 +171,21 @@
        // console.log(this.playedCards[suite].map(function(card) { return card.toString()}).join(",") + " " + currentCard);
 
         return new Card(currentCard, suite);;
+    }
+
+    getLastRoundForSuite(suite) {
+    	for(var r = rounds.length-1; r >=0; r--) {
+    		var round = rounds[r];
+    		if(round.cards[0].suite == suite) {
+    			return round;
+    		}
+    	}
+
+    	return null;
+    }
+
+    getMateIndex(i) {
+    	return (i + 2 ) %4;
     }
 }
 
@@ -311,6 +328,133 @@
                 return true;
         }
         return false;
+    }
+
+    isCardSupported(index, suite) {
+    	// don't have card
+    	if(index >= this.cards[suite].length) {
+    		return false; 
+    	}
+
+    	var num = this.cards[suite][index];
+    	var nCards = this.cards[suite].length -1; // all cards but me
+
+    	if(num == ACE) { 
+    		return true;
+    	}
+
+    	// King needs to be supported by 1 card. bit risky
+    	if(num == KING) {
+    		return nCards >= 1;
+    	}
+
+    	// Queen must be supported by at least 2
+    	// Jack must be supported by at least 3
+    	// 10 must be supported by at least 3
+    	// 9 must be supported by at least 4
+    	// 8 must be supported by at least 4
+    	// 7 must be supported by at least 5
+    	// ...
+    	var neededCards = (12 - num) - (neededCards /2) + 2;
+
+    	return nCards >=  neededCards;
+    }
+
+    getWhoMightHaveSuite(suite, myIndex) {
+    	var lastRound = game.getLastRoundForSuite(suite);
+    	var result = [];
+    	if(lastRound === null) {
+    		var maxOutside = 13 - game.cards[suite].length - this.cards[suite].length;
+    		return [0,2,1].slice(0, maxOutside);
+    	}
+    	
+		for(int i = 0 ; i< 4; i++) {
+			if(i != myIndex) {
+				if(lastRound.cards[i].suite == suite) {
+					result.push(i);
+				}
+			}
+		}
+
+		return result;
+    }
+
+
+
+    getEstimatedRoundsLeftForSuite(suite, myIndex) {
+    	var cardsLeft = 13 - this.cards[suite].length - game.cards[suite].length;
+
+    	var nextRoundCards = 3;
+    	if(game.getLastRoundForSuite(suite) != null) {
+    		nextRoundPlayers = this.getWhoMightHaveSuite(suite, myIndex).length - 1;	
+    	}
+
+    	var n = 0;
+    	while(cardsLeft > 0) {
+    		cardsLeft -= nextRoundCards;
+    		if(nextRoundPlayers > 1) {
+    			nextRoundPlayers--;	
+    		}
+    		n++;
+    	}
+
+    	return n;
+    }
+
+
+    getMastersOutside(leftRounds) {
+    	var mastersOutside = [];
+    	var master = ACE;
+    	var gameCards = game.cards[suite];
+    	var handCards = this.cards[suite];
+    	var gameIndex = gameCards.length;
+    	var handIndex = handCards.length;
+    	while(leftRounds > 0) {
+    		var outside = true;
+
+    		// if it was played
+    		if(	gameIndex >= 0 
+    			&& gameIndex < gameCards.length 
+    			&& gameCards[gameIndex].number == master) {
+    		  outside = false;
+    		}
+
+    		// if it was with me
+    		if( handIndex >=0
+    			&& handIndex < handCards.length
+    			&& handCards[suite] == master) {
+    		  outside = false;
+    		}
+
+    		if(outside) {
+    			mastersOutside.push(master);
+    		}
+    		leftRounds--;
+    		master--;
+    	}
+
+    	return mastersOutside;
+    }
+
+    mayCollectAto(myIndex) {
+    	// don't collect if only your mate has ato
+    	var owners = game.getWhoMightHaveSuite(game.ato);
+    	if(owners.length == 1 && owners[0] == game.getMateIndex(myIndex)) {
+    		return false;
+    	}
+
+    	// we should have at least 2 cards after collecting ato.
+    	var leftRounds = game.getEstimatedRoundsLeftForSuite(game.ato, myIndex);
+    	if(this.cards[suite].length - leftRounds < 2 ) {
+    		return false;
+    	}
+
+    	var mastersOutside = this.getMastersOutside(leftRounds);
+    	if(mastersOutside.length > 1) {
+    		return false;
+    	}
+
+    	return true;
     }
  }
 
