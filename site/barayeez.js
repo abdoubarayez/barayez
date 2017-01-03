@@ -8,6 +8,8 @@
  var HEART = 'H';
  var DIAMOND = 'D';
  var CLUB = 'C';
+ var NT = 'Z';
+ var DOUBLE = 'DOUBLE';
  var SUITES = [CLUB, DIAMOND, HEART, SPADE];
  
  function strCard(cardString) {
@@ -83,6 +85,7 @@
         this.currentPlayerIndex = 0;
         this.cardsToImgMap = {};
         this.rounds = [];
+        this.auction = new Auction();
     }
 
     startNewHand() {
@@ -149,6 +152,10 @@
         }
     }
 
+    recordBid(bid) {
+    	return this.auction.addBid(bid);
+    }
+
     gettHighestPlayedCard(suite) {
         var len = this.playedCards[suite].length;
         if (len === 0) return null;
@@ -174,8 +181,8 @@
     }
 
     getLastRoundForSuite(suite) {
-    	for(var r = rounds.length-1; r >=0; r--) {
-    		var round = rounds[r];
+    	for(var r = this.rounds.length-1; r >=0; r--) {
+    		var round = this.rounds[r];
     		if(round.cards[0].suite == suite) {
     			return round;
     		}
@@ -196,6 +203,12 @@
      // dictionary suite to list of cards
      this.cards = cards;
      this.game = game;
+     this.supporter = false;
+     this.myLastBid = null;
+
+     //this.lastMainCall = {CLUB: null, DIAMOND:null, HEART:null, SPADE:null, NT:null};
+     this.supporterRaises = {CLUB: 0, DIAMOND:0, HEART:0, SPADE:0, NT:0};
+     this.ourLastSuite = null;
     }
  
     hasCard(card) {
@@ -261,7 +274,7 @@
     getHighestNonAtoCard() {
         for (var i=0; i< SUITES.length; i++) {
             var suite = SUITES[i];
-            if (suite != game.ato) {
+            if (suite != this.game.ato) {
                 var card = this.game.getHighestNonPlayedCard(suite);
                 if(card == null) {
                     continue;
@@ -355,20 +368,25 @@
     	// 8 must be supported by at least 4
     	// 7 must be supported by at least 5
     	// ...
-    	var neededCards = (12 - num) - (neededCards /2) + 2;
+    	var neededCards = (12 - num) + 3;
+    	neededCards -= neededCards/2;
 
     	return nCards >=  neededCards;
     }
 
     getWhoMightHaveSuite(suite, myIndex) {
-    	var lastRound = game.getLastRoundForSuite(suite);
+    	var lastRound = this.game.getLastRoundForSuite(suite);
     	var result = [];
     	if(lastRound === null) {
-    		var maxOutside = 13 - game.cards[suite].length - this.cards[suite].length;
+    		var myCards = 0;
+    		if(this.cards[suite] != null) {
+    			myCards = this.cards[suite].length;
+    		}
+    		var maxOutside = 13 - this.game.playedCards[suite].length - myCards;
     		return [0,2,1].slice(0, maxOutside);
     	}
     	
-		for(int i = 0 ; i< 4; i++) {
+		for(var i = 0 ; i< 4; i++) {
 			if(i != myIndex) {
 				if(lastRound.cards[i].suite == suite) {
 					result.push(i);
@@ -382,18 +400,18 @@
 
 
     getEstimatedRoundsLeftForSuite(suite, myIndex) {
-    	var cardsLeft = 13 - this.cards[suite].length - game.cards[suite].length;
+    	var cardsLeft = 13 - this.cards[suite].length - this.game.playedCards[suite].length;
 
     	var nextRoundCards = 3;
     	if(game.getLastRoundForSuite(suite) != null) {
-    		nextRoundPlayers = this.getWhoMightHaveSuite(suite, myIndex).length - 1;	
+    		nextRoundCards = this.getWhoMightHaveSuite(suite, myIndex).length - 1;	
     	}
 
     	var n = 0;
     	while(cardsLeft > 0) {
     		cardsLeft -= nextRoundCards;
-    		if(nextRoundPlayers > 1) {
-    			nextRoundPlayers--;	
+    		if(nextRoundCards > 1) {
+    			nextRoundCards--;	
     		}
     		n++;
     	}
@@ -405,7 +423,7 @@
     getMastersOutside(leftRounds) {
     	var mastersOutside = [];
     	var master = ACE;
-    	var gameCards = game.cards[suite];
+    	var gameCards = this.game.playedCards[suite];
     	var handCards = this.cards[suite];
     	var gameIndex = gameCards.length;
     	var handIndex = handCards.length;
@@ -436,16 +454,16 @@
     	return mastersOutside;
     }
 
-    mayCollectAto(myIndex) {
+    mayCollectAto(myIndex, ato) {
     	// don't collect if only your mate has ato
-    	var owners = game.getWhoMightHaveSuite(game.ato);
-    	if(owners.length == 1 && owners[0] == game.getMateIndex(myIndex)) {
+    	var owners = this.getWhoMightHaveSuite(ato, myIndex);
+    	if(owners.length == 1 && owners[0] == this.game.getMateIndex(myIndex)) {
     		return false;
     	}
 
     	// we should have at least 2 cards after collecting ato.
-    	var leftRounds = game.getEstimatedRoundsLeftForSuite(game.ato, myIndex);
-    	if(this.cards[suite].length - leftRounds < 2 ) {
+    	var leftRounds = this.getEstimatedRoundsLeftForSuite(ato, myIndex);
+    	if(this.cards[ato].length - leftRounds < 2 ) {
     		return false;
     	}
 
@@ -455,6 +473,216 @@
     	}
 
     	return true;
+    }
+
+    getEstimatedTricksForSuite(suite, myIndex, ato) {
+    
+    	var count = 0;
+    	for(var i =0; i< this.cards[suite].length; i++) {
+    		var number = this.cards[suite][i];
+    		if(number == ACE) {
+    			count++;
+    			continue;
+    		}
+
+    		if(number == KING) {
+    			if(this.isCardSupported(i, suite)) {
+    				count++;
+    			}
+    			continue;
+    		}
+
+			if(this.isCardSupported(i, suite)) {
+				if(suite === ato 
+					|| ato === NT
+					|| this.mayCollectAto(myIndex, ato)) {
+ 					count++;
+				}
+			}
+    	}
+
+    	return count;
+    }
+
+    getEstimatedTricks(ato, myIndex) {
+    	var count = 0;
+		for(var i = 0; i < 4; i++) {
+    		var suite = SUITES[i];
+    		count += this.getEstimatedTricksForSuite(suite, myIndex, ato);
+    	}
+    	return count;
+    }
+
+    getHighestSuite(myIndex) {
+    	var maxCount = 0;
+    	var maxSuite;
+    	for(var i = 0; i < 4; i++) {
+    		var suite = SUITES[i];
+    		var count = this.getEstimatedTricks(suite, myIndex);
+    		if(count >= maxCount) {
+    			maxSuite = suite;
+    		}
+    	}
+
+    	var count = this.getEstimatedTricks(NT, myIndex);
+		if(count > maxCount) {
+			maxSuite = suite;
+		}
+
+		return maxSuite;
+    }
+
+    getBidInternal(myIndex) {
+    	var auction = this.game.auction;
+    	if(auction.maxBidder === myIndex) {
+    		return null;
+    	}
+
+    	var mySuite = this.getHighestSuite(myIndex);
+    	console.log(mySuite);
+		var myCount = this.getEstimatedTricks(mySuite, myIndex);
+		console.log(myCount);
+
+		// I am first
+		if(auction.maxBid === null) {
+			if(myCount >= 7) {
+				return new Bid(7, mySuite);
+			}
+
+			return null;
+		}
+
+		var myHighestBid = new Bid(myCount, mySuite);
+
+    	// my mate is the highest bidder
+    	if(game.higestBidder === (myIndex + 2) % 4) {
+
+    		// very strong hand in another color, change
+    		if(mySuite != auction.higestBidder.suite
+    			 && myCount >= 9
+    			 && myHighestBid.greaterThan(auction.maxBid) ) {
+    			this.ourLastSuite = mySuite;
+    			return auction.maxBid.raise(mySuite);
+    		}
+
+    		// bad hand in mate color
+    		// have another OK suite
+    		// I never called 
+    		// He made a weak call, change
+    		if(this.getEstimatedTricks(auction.maxBid.suite, myIndex) < 2 
+    			&& this.myLastBid === null 
+    			&& this.myCount >= 5 
+    			&& auction.maxBid.count == 7) {
+    			this.ourLastSuite = mySuite;
+    			return auction.maxBid.raise(mySuite);
+	   		}
+
+    		// He has the lead, support if you can
+    		this.supporter = true;
+    		this.ourLastSuite = auction.maxBid.suite;
+    		return null;
+    	}
+
+    	// opponent is winning the bid
+
+    	var minToWin = 13 - auction.maxBid.count + 1;
+    	var myTricksInTheirSuite = this.getEstimatedTricks(auction.maxBid.suite, myIndex);
+
+    	// Likely beat them in their suite , double
+    	if(myTricksInTheirSuite > minToWin) {
+    		return DOUBLE;
+    	}
+
+    	// I am just supporting, raise in mate suite if I need to
+    	if(this.supporter) {
+    		var mateLastSuite = auction.bids[auction.bids.length - 2].suite;
+    		if(mateLastSuite != null) {
+    			this.ourLastSuite = mateLastSuite;
+    		}
+
+    		// I raised him before, pass
+    		if(this.supporterRaises[this.ourLastSuite]  != 0) {
+    			return null;
+    		}
+
+    		var tricks = this.getEstimatedTricks(this.ourLastSuite, myIndex);
+    		if(tricks > 2) {
+    			this.supporterRaises[this.ourLastSuite]++;
+    			return auction.maxBid.raise(this.ourLastSuite);
+    		}
+
+    		return null;
+    	}
+
+    	// mate didn't call or passed, raise
+    	if(auction.bids.length < 2 
+    		|| auction.bids[auction.bids.length - 2] === null) {
+
+    		myHighestBid.count += this.supporterRaises[mySuite];
+
+    		// if I can raise, do it.
+    		if(myHighestBid.greaterThan(auction.maxBid)) {
+    			this.ourLastSuite = mySuite;
+    			return auction.maxBid.raise(mySuite);	
+    		}
+    		
+    		return null;
+    	}
+
+    	var mateLastSuite = auction.bids[auction.bids.length - 2].suite;
+
+    	// mate called in same suite
+    	if(mateLastSuite === mySuite) {
+
+    		this.ourLastSuite = mySuite;
+
+    		// if I didn't call before, switch to supporting role
+    		if(this.myLastBid === null) {
+    			this.supporter = true;
+
+    			var tricks = this.getEstimatedTricks(this.ourLastSuite, myIndex);
+    			if(tricks > 2) {
+	    			this.supporterRaises[this.ourLastSuite]++;
+	    			return auction.maxBid.raise(this.ourLastSuite);
+	    		}
+
+	    		return null;
+    		}
+
+    		// I called before, he is supporting me, raise if you can
+
+    		myHighestBid.count += this.supporterRaises[mySuite];
+
+    		// if I can raise, do it.
+    		if(myHighestBid.greaterThanO(auction.maxBid)) {
+    			this.ourLastSuite = mySuite;
+    			return auction.maxBid.raise(mySuite);	
+    		}
+    		
+    		return null;
+		}
+
+		// Mate decided to change 
+
+		
+
+		// very strong hand in another color, change
+		if(myCount >= 9
+			 && myHighestBid.greaterThan(auction.maxBid) ) {
+			this.ourLastSuite = mySuite;
+			return auction.maxBid.raise(mySuite);
+		}
+
+		// He has the lead, support if you can
+		this.supporter = true;
+		this.ourLastSuite = auction.maxBid.suite;
+		return null;
+    }
+
+    getBid(myIndex) {
+    	var bid = this.getBidInternal(myIndex);
+    	if(bid != null) { this.myLastBid = bid; }
+    	return bid;
     }
  }
 
@@ -485,14 +713,15 @@
       }
       return winnerIndex;
     }
+
     isMateWining() {
         if (this.cards.length <= 2) return false;
 
         var mateIndex = this.cards.length - 2;
         var mateCard = this.cards[mateIndex];
 
-        var oponenetPlayedAto = this.cards[0].suite == game.ato || this.cards[2].suite == game.ato;
-        var matePlayedAto = mateCard.suite == game.ato;
+        var oponenetPlayedAto = this.cards[0].suite == this.game.ato || this.cards[2].suite == this.game.ato;
+        var matePlayedAto = mateCard.suite == this.game.ato;
         if (oponenetPlayedAto && !matePlayedAto) return false;
         if (!oponenetPlayedAto && matePlayedAto) return true;
         else {
@@ -520,11 +749,94 @@
     }
 }
 
+class Bid {
+	constructor(count, suite) {
+		this.count = count;
+		this.suite = suite;
+	}
+
+	greaterThan(b) {
+		if(this.suite == b.suite) {
+			return this.count > b.count;
+		}
+
+		if(this.suite == null) { return false; }
+		if(b.suite == null) { return true; }
+
+		return this.suite > b.suite;
+	}
+
+	// returns the lowest bid in suite that is greater than this bid
+	raise(suite) {
+		if(this.suite < suite) {
+			return new Bid(this.count, suite);
+		}
+
+		return new Bid(this.count + 1, suite);
+	}
+
+	toString() {
+		return this.count + " " + this.suite;
+	}
+}
+
+class Auction {
+	constructor() {
+		this.bids = [];
+		this.currentBidder = 0;
+		this.maxBidder = -1;
+		this.maxBid = null;
+		this.passes = 0;
+		this.open = true;
+	}
+
+	addBid(bid) {
+		if(!this.open) {
+			return true;
+		}
+
+		if(bid == null) { // PASS
+			this.bids.push(bid);
+			this.currentBidder++;
+			this.currentBidder%=4;
+			this.passes++;
+
+			if(this.passes == 4) {
+				this.open = false;
+				return true;
+			}
+
+			if(this.passes == 3 && this.maxBid != null) {
+				this.open = false;
+				return true;
+			}
+
+			return false;
+		}
+
+		if( this.maxBid == null 
+			|| bid.greaterThan(this.maxBid)) {
+            this.passes = 0;
+			this.maxBidder = this.currentBidder;
+			this.maxBid = bid;
+
+			this.bids.push(bid);
+			this.currentBidder++;
+			this.currentBidder%=4;
+
+			return false;
+		}
+
+		return false;
+	}
+}
+
 class Player{
   constructor(game, playerName) {
     this.game = game;
     this.playerName = playerName;
   }
+
   setNewHand(cardsDict) {
 
     this.hand = new Hand(cardsDict, this.game);
@@ -532,9 +844,9 @@ class Player{
   }
 
   play(round) {
-    var rules = masterRules[round.cards.length];
-    var card = null;
-    for(var i = 0; i < rules.length; i++) {
+  	var rules = masterRules[round.cards.length];
+  	var card = null;
+  	for(var i = 0; i < rules.length; i++) {
         var rule = rules[i];
         if(rule.condition(this.hand, round)) {
             console.log(this.playerName + ": Executing rule " + i);
@@ -546,7 +858,13 @@ class Player{
       this.hand.removeCard(card);
     }
     return card;
-    }
+  }
+
+  getBid(myIndex) { 
+  	return this.hand.getBid(myIndex);
+  }
+
+
 }
 
  
@@ -919,4 +1237,16 @@ async function play() {
 function newHand() {
   game.startNewHand();
 }
- 
+
+function bid() {
+	newHand();
+	var i = 0;
+	var bid = game.players[i].getBid(i);
+	alert(bid);
+	while(!game.recordBid(bid)) {
+		i++;
+		i%=4;
+		bid = game.players[i].getBid(i);
+		alert(bid);
+	}
+ }
