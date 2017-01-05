@@ -90,10 +90,48 @@
 
     startNewHand() {
       this.cardsToImgMap = {};
-      this.players[0].setNewHand(parseHand('10D,JD,9D,4D,3D,JC,10C,6C,2C,9H,7H,5H,4H'));
-      this.players[1].setNewHand(parseHand('AC,KC,QC,9C,QH,8H,9S,4S,3S,QD,7D,6D,5D'));
-      this.players[2].setNewHand(parseHand('7C,5C,3C,8C,AH,JH,6H,2H,KS,10S,AD,8D,2D'));
-      this.players[3].setNewHand(parseHand('4C,KD,KH,10H,3H,AS,QS,JS,8S,7S,6S,5S,2S'));
+      this.players[0].setNewHand(handFromString('10D,JD,9D,4D,3D,JC,10C,6C,2C,9H,7H,5H,4H'));
+      this.players[1].setNewHand(handFromString('AC,KC,QC,9C,QH,8H,9S,4S,3S,QD,7D,6D,5D'));
+      this.players[2].setNewHand(handFromString('7C,5C,3C,8C,AH,JH,6H,2H,KS,10S,AD,8D,2D'));
+      this.players[3].setNewHand(handFromString('4C,KD,KH,10H,3H,AS,QS,JS,8S,7S,6S,5S,2S'));
+      for (var  i = 0; i < this.players.length; i++) {
+        this.renderHand(i);
+      }
+    }
+     
+     startSecondHand() {
+      this.cardsToImgMap = {};
+      this.players[0].setNewHand(handFromString('10C,JC,4D,KD,AD,4H,10H,QH,2S,3S,10S,JS,QS'));
+      this.players[1].setNewHand(handFromString('6C,8C,QC,7C,2D,9D,QD,2H,3H,8H,4S,5S,8S'));
+      this.players[2].setNewHand(handFromString('3C,4C,5C,AC,5D,7D,8D,10D,JD,5H,9S,KS,AS'));
+      this.players[3].setNewHand(handFromString('2C,9C,KC,3D,6D,6H,7H,9H,JH,KH,AH,6S,7S'));
+      for (var  i = 0; i < this.players.length; i++) {
+        this.renderHand(i);
+      }
+    }
+     
+  //   10C,JC,4D,KD,AD,4H,10H,QH,2S,3S,10S,JS,QS
+//6C,8C,QC,AC,2D,9D,QD,2H,3H,8H,4S,5S,8S
+//3C,4C,5C,7C,5D,7D,8D,10D,JD,5H,9S,KS,AS
+//2C,9C,KC,3D,6D,6H,7H,9H,JH,KH,AH,6S,7S
+     
+    randomHand() {
+      this.cardsToImgMap = {};
+      var deck = parseCardsString('2C,3C,4C,5C,6C,7C,8C,9C,10C,JC,QC,KC,AC,' +
+                           '2D,3D,4D,5D,6D,7D,8D,9D,10D,JD,QD,KD,AD,' +
+                           '2H,3H,4H,5H,6H,7H,8H,9H,10H,JH,QH,KH,AH,' +
+                           '2S,3S,4S,5S,6S,7S,8S,9S,10S,JS,QS,KS,AS');
+      for(var i = 0; i< 500; i++) {
+          var j = Math.floor(Math.random() * 52);
+          var k = Math.floor(Math.random() * 52);
+          var temp = deck[j];
+          deck[j] = deck[k];
+          deck[k] = temp;
+      }
+      this.players[0].setNewHand(handFromCardArray(deck.slice(0,13)));
+      this.players[1].setNewHand(handFromCardArray(deck.slice(13,26)));
+      this.players[2].setNewHand(handFromCardArray(deck.slice(26,39)));
+      this.players[3].setNewHand(handFromCardArray(deck.slice(39,52)));
       for (var  i = 0; i < this.players.length; i++) {
         this.renderHand(i);
       }
@@ -134,6 +172,9 @@
       document.getElementById("p2").src="";
       document.getElementById("p3").src="";
       document.getElementById("p4").src="";
+      document.getElementById('score').innerHTML = 
+          "V: " + (this.players[0].currentHandScore + this.players[2].currentHandScore) + 
+          " -  H: " + (this.players[1].currentHandScore + this.players[3].currentHandScore);
     }
 
     animatePlayCard(card) {
@@ -207,7 +248,13 @@
      this.myLastBid = null;
 
      //this.lastMainCall = {CLUB: null, DIAMOND:null, HEART:null, SPADE:null, NT:null};
-     this.supporterRaises = {CLUB: 0, DIAMOND:0, HEART:0, SPADE:0, NT:0};
+     this.supporterRaises = {};
+     this.supporterRaises[CLUB] = 0;
+     this.supporterRaises[DIAMOND] = 0;
+     this.supporterRaises[HEART] = 0;
+     this.supporterRaises[SPADE] = 0;
+     this.supporterRaises[NT] = 0;
+        
      this.ourLastSuite = null;
     }
  
@@ -343,7 +390,7 @@
         return false;
     }
 
-    isCardSupported(index, suite) {
+    /*isCardSupported(index, suite) {
     	// don't have card
     	if(index >= this.cards[suite].length) {
     		return false; 
@@ -372,7 +419,7 @@
     	neededCards -= neededCards/2;
 
     	return nCards >=  neededCards;
-    }
+    }*/
 
     getWhoMightHaveSuite(suite, myIndex) {
     	var lastRound = this.game.getLastRoundForSuite(suite);
@@ -420,13 +467,13 @@
     }
 
 
-    getMastersOutside(leftRounds) {
+    getMastersOutside(leftRounds, suite) {
     	var mastersOutside = [];
     	var master = ACE;
     	var gameCards = this.game.playedCards[suite];
     	var handCards = this.cards[suite];
-    	var gameIndex = gameCards.length;
-    	var handIndex = handCards.length;
+    	var gameIndex = gameCards.length - 1;
+    	var handIndex = handCards.length - 1;
     	while(leftRounds > 0) {
     		var outside = true;
 
@@ -434,14 +481,16 @@
     		if(	gameIndex >= 0 
     			&& gameIndex < gameCards.length 
     			&& gameCards[gameIndex].number == master) {
+              gameIndex--;
     		  outside = false;
     		}
 
     		// if it was with me
     		if( handIndex >=0
     			&& handIndex < handCards.length
-    			&& handCards[suite] == master) {
-    		  outside = false;
+    			&& handCards[handIndex] == master) {
+    		  handIndex--;
+              outside = false;
     		}
 
     		if(outside) {
@@ -457,7 +506,8 @@
     mayCollectAto(myIndex, ato) {
     	// don't collect if only your mate has ato
     	var owners = this.getWhoMightHaveSuite(ato, myIndex);
-    	if(owners.length == 1 && owners[0] == this.game.getMateIndex(myIndex)) {
+    
+        if(owners.length == 1 && owners[0] == this.game.getMateIndex(myIndex)) {
     		return false;
     	}
 
@@ -467,7 +517,7 @@
     		return false;
     	}
 
-    	var mastersOutside = this.getMastersOutside(leftRounds);
+    	var mastersOutside = this.getMastersOutside(leftRounds, ato);
     	if(mastersOutside.length > 1) {
     		return false;
     	}
@@ -476,40 +526,81 @@
     }
 
     getEstimatedTricksForSuite(suite, myIndex, ato) {
-    
+        var cards = this.cards[suite];
+        
+        if(suite === ato 
+            || ato === NT
+            || this.mayCollectAto(myIndex, ato)) {
+
+            var leftRounds = this.getEstimatedRoundsLeftForSuite(suite, myIndex);
+    	    var mastersOutside = this.getMastersOutside(leftRounds, suite);
+            
+            
+            var count = 0;
+            var i=0, j=cards.length-1;
+            var x=0;
+            
+            while(i <= j && leftRounds > 0 && x < mastersOutside.length) {
+                // if I have the highest card, count it for me
+                if(cards[j] > mastersOutside[x]) {
+                    count++;
+                    j--;
+                } else {
+                // otherwise I lose my lowest card to the highest master
+                    x++;
+                    i++;
+                }
+                
+                leftRounds--;
+            }
+            
+            if(i<=j) {
+                count += j-i+1;
+            }
+            
+            return count;
+         }
+        
     	var count = 0;
-    	for(var i =0; i< this.cards[suite].length; i++) {
-    		var number = this.cards[suite][i];
-    		if(number == ACE) {
+    	for(var i =0; i< cards.length; i++) {
+    		var number = cards[i];
+    		if(number == ACE ||
+               (number == KING && cards.length > 1)) {
     			count++;
-    			continue;
     		}
-
-    		if(number == KING) {
-    			if(this.isCardSupported(i, suite)) {
-    				count++;
-    			}
-    			continue;
-    		}
-
-			if(this.isCardSupported(i, suite)) {
-				if(suite === ato 
-					|| ato === NT
-					|| this.mayCollectAto(myIndex, ato)) {
- 					count++;
-				}
-			}
     	}
 
     	return count;
     }
 
-    getEstimatedTricks(ato, myIndex) {
+    getEstimatedTricks(ato, myIndex, trace) {
     	var count = 0;
+        var line = '';
+        var lostTricks = 0;
 		for(var i = 0; i < 4; i++) {
     		var suite = SUITES[i];
-    		count += this.getEstimatedTricksForSuite(suite, myIndex, ato);
+    		var suiteCount= this.getEstimatedTricksForSuite(suite, myIndex, ato);
+            count += suiteCount;
+            if(trace) {
+                line += ' ' + new Bid(suiteCount, suite);
+            }
+            
+            /// If the ato is NT, you might lose some
+            /// of your tricks if the opponent gets the hand
+            if(ato === NT && this.cards[suite].length < 3) {
+                lostTricks += 5 - this.cards[suite].length;
+            }
     	}
+        
+        if(lostTricks > count) {
+            count = 0;
+        } else {
+            count -= lostTricks;
+        }
+        
+        if(trace) {
+            console.log(line + ' //' + new Bid(count, ato));
+        }
     	return count;
     }
 
@@ -521,13 +612,31 @@
     		var count = this.getEstimatedTricks(suite, myIndex);
     		if(count >= maxCount) {
     			maxSuite = suite;
+                maxCount = count;
     		}
     	}
 
     	var count = this.getEstimatedTricks(NT, myIndex);
 		if(count > maxCount) {
-			maxSuite = suite;
+			maxSuite = NT;
+            maxCount = count;
 		}
+        
+        // Our AI can't play NT well, let's favor long colors
+        if( maxSuite === NT) {
+            var maxCards = 0;
+            for(var i = 0; i < 4; i++) {
+    		  var suite = SUITES[i];
+              if(this.cards[suite].length > maxCards) {
+                  maxCards = this.cards[suite].length;
+                  maxSuite = suite;
+              }
+            }
+            
+            if(maxCards == 4) {
+                maxSuite = NT;
+            }
+        }
 
 		return maxSuite;
     }
@@ -539,28 +648,31 @@
     	}
 
     	var mySuite = this.getHighestSuite(myIndex);
-    	console.log(mySuite);
-		var myCount = this.getEstimatedTricks(mySuite, myIndex);
-		console.log(myCount);
+		var myCount = this.getEstimatedTricks(mySuite, myIndex, true);
+        var myHighestBid = new Bid(myCount, mySuite);
+        
+
 
 		// I am first
 		if(auction.maxBid === null) {
-			if(myCount >= 7) {
+			if(myCount >= 5) {
 				return new Bid(7, mySuite);
 			}
 
 			return null;
 		}
 
-		var myHighestBid = new Bid(myCount, mySuite);
-
+		
     	// my mate is the highest bidder
-    	if(game.higestBidder === (myIndex + 2) % 4) {
-
+    	if(auction.maxBidder === (myIndex + 2) % 4) {
+            console.log("Mate is the highest bidder");
+            
     		// very strong hand in another color, change
-    		if(mySuite != auction.higestBidder.suite
+    		if(mySuite != auction.maxBid.suite
     			 && myCount >= 9
     			 && myHighestBid.greaterThan(auction.maxBid) ) {
+                
+                console.log("I have a very strong hand, I'll change");
     			this.ourLastSuite = mySuite;
     			return auction.maxBid.raise(mySuite);
     		}
@@ -573,109 +685,139 @@
     			&& this.myLastBid === null 
     			&& this.myCount >= 5 
     			&& auction.maxBid.count == 7) {
+                console.log("He has a very weak hand, I'll change");
     			this.ourLastSuite = mySuite;
     			return auction.maxBid.raise(mySuite);
 	   		}
 
+            console.log("I'll support");
     		// He has the lead, support if you can
     		this.supporter = true;
     		this.ourLastSuite = auction.maxBid.suite;
     		return null;
     	}
-
-    	// opponent is winning the bid
+        
+        console.log("Opponent is winning the bid");
+        // opponent is winning the bid
 
     	var minToWin = 13 - auction.maxBid.count + 1;
     	var myTricksInTheirSuite = this.getEstimatedTricks(auction.maxBid.suite, myIndex);
 
     	// Likely beat them in their suite , double
     	if(myTricksInTheirSuite > minToWin) {
+            console.log("I have " + myTricksInTheirSuite + " in their suite, I'll double");
     		return DOUBLE;
     	}
-
+        
+        var mateLastBid = auction.bids[auction.bids.length - 2];
+        
     	// I am just supporting, raise in mate suite if I need to
     	if(this.supporter) {
-    		var mateLastSuite = auction.bids[auction.bids.length - 2].suite;
-    		if(mateLastSuite != null) {
-    			this.ourLastSuite = mateLastSuite;
+            
+            console.log("I am just supporting my mate here");
+            
+    		if(mateLastBid != null) {
+    			this.ourLastSuite = mateLastBid.suite;
     		}
+
 
     		// I raised him before, pass
     		if(this.supporterRaises[this.ourLastSuite]  != 0) {
+                console.log("I raised him before, I'll leave it to him");
     			return null;
     		}
 
     		var tricks = this.getEstimatedTricks(this.ourLastSuite, myIndex);
     		if(tricks > 2) {
+                console.log("ok, I have more than 2 tricks, I'raise him");
     			this.supporterRaises[this.ourLastSuite]++;
     			return auction.maxBid.raise(this.ourLastSuite);
     		}
 
+            console.log("Nothing I can do ");
     		return null;
     	}
 
-    	// mate didn't call or passed, raise
+        console.log("I am trying to raise them");
+        
+    	// mate didn't call or passed, raise if you can
     	if(auction.bids.length < 2 
-    		|| auction.bids[auction.bids.length - 2] === null) {
-
-    		myHighestBid.count += this.supporterRaises[mySuite];
-
+    		|| mateLastBid === null) {
+            
+            myHighestBid.count += this.supporterRaises[mySuite] +2;
+            
     		// if I can raise, do it.
     		if(myHighestBid.greaterThan(auction.maxBid)) {
+                console.log("I have better hand, I'll raise");
     			this.ourLastSuite = mySuite;
     			return auction.maxBid.raise(mySuite);	
     		}
-    		
+    
+            console.log("My hand is weaker");
     		return null;
     	}
 
-    	var mateLastSuite = auction.bids[auction.bids.length - 2].suite;
-
     	// mate called in same suite
-    	if(mateLastSuite === mySuite) {
+    	if(mateLastBid.suite === mySuite) {
+            
+            console.log("My mate called in the same as my suite");
 
     		this.ourLastSuite = mySuite;
 
     		// if I didn't call before, switch to supporting role
     		if(this.myLastBid === null) {
+                console.log("I'll just support him");
     			this.supporter = true;
 
     			var tricks = this.getEstimatedTricks(this.ourLastSuite, myIndex);
     			if(tricks > 2) {
+                    console.log("I might get him " + tricks + " tricks. I'll raise");
 	    			this.supporterRaises[this.ourLastSuite]++;
 	    			return auction.maxBid.raise(this.ourLastSuite);
 	    		}
 
+                console.log("I have a weak hand, pass");
 	    		return null;
     		}
 
+            console.log("He was supporting me");
     		// I called before, he is supporting me, raise if you can
-
-    		myHighestBid.count += this.supporterRaises[mySuite];
+            this.supporterRaises[mySuite]++;
+    		myHighestBid.count += this.supporterRaises[mySuite] + 2;
 
     		// if I can raise, do it.
-    		if(myHighestBid.greaterThanO(auction.maxBid)) {
-    			this.ourLastSuite = mySuite;
+    		if(myHighestBid.greaterThan(auction.maxBid)) {
+                console.log("Ok, he raised, he has 3 suites at least, I'll raise them");
     			return auction.maxBid.raise(mySuite);	
     		}
     		
+            console.log("Can't raise them even with his support");
     		return null;
 		}
 
 		// Mate decided to change 
-
-		
-
+        console.log("My mate changed me");
+        
 		// very strong hand in another color, change
 		if(myCount >= 9
 			 && myHighestBid.greaterThan(auction.maxBid) ) {
+            console.log("I have an awesome hand, I'll change him again");
 			this.ourLastSuite = mySuite;
 			return auction.maxBid.raise(mySuite);
 		}
 
-		// He has the lead, support if you can
+		// He has the lead, support and raise if you can
 		this.supporter = true;
-		this.ourLastSuite = auction.maxBid.suite;
+		this.ourLastSuite = mateLastBid.suite;
+        
+        var tricks = this.getEstimatedTricks(mateLastBid.suite, myIndex);
+        if(tricks > 2) {
+            console.log("I have " + tricks +" in his color, I'll raise");
+            this.supporterRaises[mateLastBid.suite]++;
+            return auction.maxBid.raise(mateLastBid.suite);
+        }
+        
+        console.log("Can't raise them :(");
 		return null;
     }
 
@@ -756,12 +898,12 @@ class Bid {
 	}
 
 	greaterThan(b) {
-		if(this.suite == b.suite) {
+		if(this.count != b.count) {
 			return this.count > b.count;
 		}
-
-		if(this.suite == null) { return false; }
-		if(b.suite == null) { return true; }
+        
+        if(this.suite == null) { return false; }
+		if(b.suite == null) { return this.suite != null; }
 
 		return this.suite > b.suite;
 	}
@@ -1195,16 +1337,20 @@ function assert(condition, message) {
      
 }
 
-var game = new Game(SPADE);
+var game;
 
 
 function parseCardsString(cardsString) {
     return cardsString.split(',').map(function(str) { return strCard(str);});
 }
 
-function parseHand(CardString) {
+function handFromString(CardString) {
     var cardsList = parseCardsString(CardString);
-    var cardsDict = {};
+    return handFromCardArray(cardsList);
+}
+
+function handFromCardArray(cardsList) {
+     var cardsDict = {};
   cardsDict[SPADE] = [];
   cardsDict[HEART] = [];
   cardsDict[DIAMOND] = [];
@@ -1235,11 +1381,21 @@ async function play() {
   } 
 }
 function newHand() {
+  game = new Game();
   game.startNewHand();
 }
 
+function secondHand() {
+  game = new Game();
+  game.startSecondHand();
+}
+
+function randomHand() {
+  game = new Game();
+  game.randomHand();
+}
+
 function bid() {
-	newHand();
 	var i = 0;
 	var bid = game.players[i].getBid(i);
 	alert(bid);
@@ -1249,4 +1405,7 @@ function bid() {
 		bid = game.players[i].getBid(i);
 		alert(bid);
 	}
+    
+    game.ato = game.auction.maxBid.suite;
+    game.currentPlayerIndex = game.auction.maxBidder;
  }

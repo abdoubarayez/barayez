@@ -1,0 +1,2 @@
+* Collect Ato during game play
+* Don't get rid of supporting cards
