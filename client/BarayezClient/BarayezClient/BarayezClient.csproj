@@ -66,6 +66,7 @@
     <Reference Include="System.EnterpriseServices" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="js\barayezui.js" />
     <Content Include="packages.config" />
     <Content Include="images\.DS_Store" />
     <None Include="Web.Debug.config">
