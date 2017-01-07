@@ -1,0 +1,9 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/client/BarayezClient/.vs/BarayezClient/v14/.suo
+/client/BarayezClient/BarayezClient/bin
+/client/BarayezClient/BarayezClient/obj/Debug
+/client/BarayezClient/BarayezClient/BarayezClient.csproj.user
+/client/BarayezClient/packages
